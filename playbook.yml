@@ -1,0 +1,102 @@
+- hosts: localhost
+  connection: local
+
+  vars:
+
+  tasks:
+      
+    -   name: Check the version of OS
+        command: hostnamectl
+        register: os_check
+        ignore_errors: yes  
+
+    -   name: Absent the Irrelevant files - Ubuntu 20
+        file:
+          path: /etc/apt/sources.list.d/ansible-ubuntu-ansible-focal.list
+          state: absent
+        when:
+          - os_check.stdout | regex_search("Ubuntu 20")
+
+    -   name: Install Mono dependencies - Ubuntu 20
+        apt: 
+            name: "{{ item }}" 
+            update_cache: yes 
+            state: present
+        loop: 
+            - dirmngr 
+            - gnupg 
+            - apt-transport-https 
+            - ca-certificates
+            - software-properties-common
+        when:
+            - os_check.stdout | regex_search("Ubuntu 20")
+
+    -   name: Install Mono dependencies - Ubuntu 18
+        apt: 
+            name: "{{ item }}" 
+            update_cache: yes 
+            state: present
+        loop: 
+            - dirmngr 
+            - gnupg 
+            - apt-transport-https 
+            - ca-certificates
+        when:
+            - os_check.stdout | regex_search("Ubuntu 18")
+
+    -   name: Add Mono Key - Ubuntu
+        apt_key:
+            keyserver: keyserver.ubuntu.com
+            id: 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+        when:
+            - os_check.stdout | regex_search("Ubuntu")
+
+    -   name: Add Repo of Mono - Ubuntu 20
+        apt_repository:
+            repo: deb https://download.mono-project.com/repo/ubuntu stable-bionic main
+            state: present
+        when:
+          - os_check.stdout | regex_search("Ubuntu 20")
+
+    -   name: Add Repo of Mono - Ubuntu 18
+        apt_repository:
+            repo: deb https://download.mono-project.com/repo/ubuntu stable-bionic main
+            state: present
+        when:
+          - os_check.stdout | regex_search("Ubuntu 18")
+
+    -   name: Install Mono - Ubuntu
+        apt: 
+            name: "{{ item }}" 
+            update_cache: yes 
+            state: present
+        loop: 
+            - mono-complete 
+        when:
+            - os_check.stdout | regex_search("Ubuntu")
+
+    -   name: Add Main Mono Key - CentOS 
+        rpm_key:
+            state: present
+            key: http://pool.sks-keyservers.net/pks/lookup?op=get&search=0x3fa7e0328081bff6a14da29aa6a19b38d3d831ef
+        when:
+            - os_check.stdout | regex_search("CentOS")
+
+    -   name: Add Mono repo entry - CentOS 8
+        shell: su -c 'curl https://download.mono-project.com/repo/centos8-stable.repo | tee /etc/yum.repos.d/mono-centos8-stable.repo'
+        when: 
+            - os_check.stdout | regex_search("CentOS Linux 8")
+
+    -   name: Add Mono repo entry - CentOS 7
+        shell: su -c 'curl https://download.mono-project.com/repo/centos7-stable.repo | tee /etc/yum.repos.d/mono-centos7-stable.repo'
+        when: 
+            - os_check.stdout | regex_search("CentOS Linux 7")
+
+    -   name: Install Mono - CentOS
+        yum: 
+            name: "{{ item }}" 
+            state: present
+        loop: 
+            - mono-complete 
+        when:
+            - os_check.stdout | regex_search("CentOS")
